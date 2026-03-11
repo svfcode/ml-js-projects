@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Статистика обучения — MNIST</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <h1>Статистика обучения</h1>
+  <p class="subtitle"><a href="/">← Назад к обучению</a></p>
+
+  <div class="stats-controls">
+    <button class="btn secondary" id="refreshBtn">Обновить</button>
+  </div>
+
+  <div id="statsTableWrap" class="stats-table-wrap">
+    <p class="stats-loading" id="statsLoading">Загрузка...</p>
+    <table class="stats-table" id="statsTable" style="display:none">
+      <thead>
+        <tr>
+          <th>Дата</th>
+          <th>Тип</th>
+          <th>Режим</th>
+          <th>Примеров</th>
+          <th>Длительность</th>
+          <th>Heap (страница)</th>
+          <th>CPU</th>
+          <th>Процесс</th>
+          <th>Точность</th>
+        </tr>
+      </thead>
+      <tbody id="statsBody"></tbody>
+    </table>
+    <p class="stats-empty" id="statsEmpty" style="display:none">Нет записей. Запустите обучение на основной странице.</p>
+  </div>
+
+  <div class="stats-summary" id="statsSummary"></div>
+
+  <script>
+    const typeLabels = { one: '1 пример', batch: 'Батч', batches: 'Авто батчи', epochs: 'Эпохи' };
+
+    function formatDuration(ms) {
+      if (ms == null) return '—';
+      if (ms < 1000) return ms + ' мс';
+      if (ms < 60000) return (ms / 1000).toFixed(1) + ' с';
+      const m = Math.floor(ms / 60000);
+      const s = Math.round((ms % 60000) / 1000);
+      return m + ' мин' + (s ? ' ' + s + ' с' : '');
+    }
+
+    function formatDate(iso) {
+      if (!iso) return '—';
+      const d = new Date(iso);
+      return d.toLocaleString('ru');
+    }
+
+    async function loadStats() {
+      document.getElementById('statsLoading').style.display = '';
+      document.getElementById('statsTable').style.display = 'none';
+      document.getElementById('statsEmpty').style.display = 'none';
+      try {
+        const res = await fetch('/api/training-stats');
+        const stats = await res.json();
+        renderStats(stats);
+      } catch (err) {
+        document.getElementById('statsLoading').textContent = 'Ошибка: ' + err.message;
+      }
+    }
+
+    function renderStats(stats) {
+      document.getElementById('statsLoading').style.display = 'none';
+      const tbody = document.getElementById('statsBody');
+      tbody.innerHTML = '';
+      if (!stats || stats.length === 0) {
+        document.getElementById('statsEmpty').style.display = '';
+        document.getElementById('statsSummary').innerHTML = '';
+        return;
+      }
+      document.getElementById('statsTable').style.display = 'table';
+      const reversed = [...stats].reverse();
+      reversed.forEach(entry => {
+        const row = document.createElement('tr');
+        const heapStart = entry.pageHeapMbStart != null ? entry.pageHeapMbStart + ' МБ' : '—';
+        const heapEnd = entry.pageHeapMbEnd != null ? entry.pageHeapMbEnd + ' МБ' : '—';
+        const heap = heapStart !== '—' && heapEnd !== '—' ? `${heapStart} → ${heapEnd}` : heapStart;
+        row.innerHTML = `
+          <td>${formatDate(entry.date)}</td>
+          <td>${typeLabels[entry.type] || entry.type}</td>
+          <td>${entry.mode || '—'}</td>
+          <td>${entry.samples != null ? entry.samples.toLocaleString() : (entry.epochs ? entry.epochs + ' эп' : '—')}</td>
+          <td>${formatDuration(entry.durationMs)}</td>
+          <td>${heap}</td>
+          <td>${entry.cpuEnd != null ? entry.cpuEnd + '%' : '—'}</td>
+          <td>${entry.processHeapMbEnd != null ? entry.processHeapMbEnd + ' МБ' : '—'}</td>
+          <td>${entry.accuracy != null ? (entry.accuracy * 100).toFixed(1) + '%' : '—'}</td>
+        `;
+        tbody.appendChild(row);
+      });
+      const totalSamples = stats.reduce((s, e) => s + (e.samples || 0), 0);
+      const totalMs = stats.reduce((s, e) => s + (e.durationMs || 0), 0);
+      document.getElementById('statsSummary').innerHTML = `
+        <h3>Сводка</h3>
+        <p>Записей: ${stats.length} | Всего примеров: ${totalSamples.toLocaleString()} | Общее время: ${formatDuration(totalMs)}</p>
+      `;
+    }
+
+    document.getElementById('refreshBtn').addEventListener('click', loadStats);
+    loadStats();
+  </script>
+</body>
+</html>
