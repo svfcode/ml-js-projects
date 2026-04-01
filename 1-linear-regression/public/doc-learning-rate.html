@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Скорость обучения (learning rate)</title>
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="doc.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main">К содержанию</a>
+    <header class="site-header">
+      <nav class="site-nav" aria-label="Разделы проекта">
+        <a href="index.html">Демо</a>
+        <a href="training-flow.html">Устройство</a>
+        <a href="doc-learning-rate.html" aria-current="page">Скорость обучения</a>
+        <a href="doc-gradient-step.html">Шаг градиента</a>
+      </nav>
+    </header>
+
+    <div class="doc-page">
+      <aside class="doc-toc" aria-label="Оглавление">
+        <p class="doc-toc__title">На странице</p>
+        <nav>
+          <ul>
+            <li><a href="#what">Что такое η</a></li>
+            <li><a href="#ui">Интерфейс демо</a></li>
+            <li><a href="#source">Откуда берётся число</a></li>
+            <li><a href="#sync">Ползунок и поле</a></li>
+            <li><a href="#batch">Один η на пачку шагов</a></li>
+            <li><a href="#stability">Слишком большой шаг</a></li>
+            <li><a href="#constants">Константы в ux.js</a></li>
+          </ul>
+        </nav>
+        <p class="doc-toc__title doc-toc__title--sub">Связанные страницы</p>
+        <ul>
+          <li><a href="training-flow.html">Устройство</a></li>
+          <li><a href="doc-gradient-step.html">Шаг градиента (ml.js)</a></li>
+        </ul>
+      </aside>
+
+      <main id="main" class="doc-main">
+        <p class="doc-parent"><a href="training-flow.html">← Устройство</a></p>
+        <h1>Скорость обучения (learning rate)</h1>
+        <p class="doc-lead">
+          <strong>Learning rate</strong> (в коде и интерфейсе — скорость обучения) обозначается греческой буквой <strong>η</strong> (или в литературе α). Это множитель, на который умножается <strong>градиент</strong> потерь перед тем, как вычесть его из параметров модели. В демо параметры — <strong>w</strong> и <strong>b</strong> в формуле ŷ = w·x + b.
+        </p>
+
+        <h2 id="what">Зачем нужна скорость обучения</h2>
+        <p>
+          Градиент указывает направление наискорейшего роста функции потерь. Чтобы <strong>уменьшить</strong> MSE, двигаются в противоположную сторону: новые веса = старые минус η, умноженное на градиент. Если η <strong>маленькое</strong>, шаги короткие — сходимость плавная, но может потребоваться много итераций. Если η <strong>большое</strong>, за один шаг можно «перепрыгнуть» дно чашки потерь: MSE начнёт расти или осциллировать — это не «плохой MSE», а <strong>нестабильный градиентный спуск</strong> при данном η и данных.
+        </p>
+
+        <h2 id="ui">Интерфейс демо</h2>
+        <p>На панели управления есть два элемента для одной и той же величины:</p>
+        <ul>
+          <li>
+            <strong>Ползунок</strong> (<code>#lr</code>): min <code>0.001</code>, max <code>10</code>, шаг <code>0.001</code>. Удобно грубо менять порядок величины.
+          </li>
+          <li>
+            <strong>Числовое поле</strong> (<code>#lrNumber</code>): атрибут <code>min="0.001"</code>, <code>step="any"</code> — можно ввести дробь с произвольной точностью и значения <strong>больше 10</strong> (ползунок при этом ограничен своим max и может не совпадать с очень большим η).
+          </li>
+        </ul>
+
+        <h2 id="source">Откуда берётся число в коде</h2>
+        <p>
+          Функция <code>getLearningRate()</code> в <code>ux.js</code> сначала пытается прочитать <code>parseFloat</code> из <code>#lrNumber</code>. Если результат не число (NaN), используется значение ползунка <code>#lr</code>. Далее значение проходит через <code>clampLr</code>.
+        </p>
+
+        <h2 id="sync">Ползунок и поле: как синхронизируются</h2>
+        <ul>
+          <li>
+            <strong>Событие <code>input</code> на ползунке</strong> → <code>syncLrFromSlider</code>: значение ограничивается снизу константой <code>LR_MIN = 0.001</code>, округляется к шагу <code>LR_SLIDER_STEP = 0.001</code>, записывается обратно в ползунок и в числовое поле (форматирование через <code>formatLrForInput</code> — до 6 знаков с обрезкой хвостовых нулей).
+          </li>
+          <li>
+            <strong>Событие <code>change</code> на числовом поле</strong> → <code>syncLrFromNumberField</code>: если ввод не распарсился — откат к ползунку. Иначе <code>clampLr</code>, обновление текста поля, позиция ползунка = <code>min(max(snapped, LR_MIN), sliderMax)</code>, где <code>snapped</code> — округление к шагу 0.001.
+          </li>
+          <li>
+            <strong>Enter</strong> в числовом поле снимает фокус (<code>blur</code>), чтобы сработал <code>change</code>.
+          </li>
+        </ul>
+        <p>
+          <strong>clampLr</strong>: если значение не конечное число (<code>Number.isFinite</code>), подставляется <code>LR_MIN</code>; иначе берётся <code>max(LR_MIN, v)</code>. Сверху в коде <strong>нет</strong> верхней границы — можно задать очень большой η (на свой риск по стабильности).
+        </p>
+
+        <h2 id="batch">Один η на пачку шагов</h2>
+        <p>
+          <code>runTrainingSteps(n)</code> один раз вызывает <code>getLearningRate()</code> и передаёт полученное <code>lr</code> в <code>LRLOGIC.runSteps(n, lr)</code>. Внутри цикла из <strong>n</strong> итераций <code>lr</code> <strong>не перечитывается</strong> из DOM. То есть при нажатии «10 шагов» все десять обновлений используют одно и то же η. Между пачками или между одиночными кликами можно менять поле — следующий вызов подхватит новое значение.
+        </p>
+
+        <h2 id="stability">Почему при одном η «учится», а при другом — нет</h2>
+        <p>
+          Для квадратичной MSE по (w, b) градиентный спуск сходится только если η меньше порога, зависящего от данных (через спектр гессиана). В демо точки с x в диапазоне примерно [−1, 1] часто дают порог около единицы: чуть ниже — стабильно, на грани или выше — расходимость или качели. Это свойство <strong>алгоритма и масштаба данных</strong>, а не отказ MSE «работать».
+        </p>
+
+        <h2 id="constants">Сводка констант (<code>ux.js</code>)</h2>
+        <div class="doc-table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Имя</th>
+                <th>Значение</th>
+                <th>Назначение</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>LR_MIN</code></td>
+                <td><code>0.001</code></td>
+                <td>Нижняя граница η после <code>clampLr</code></td>
+              </tr>
+              <tr>
+                <td><code>LR_SLIDER_STEP</code></td>
+                <td><code>0.001</code></td>
+                <td>Шаг дискретизации ползунка и привязки поля</td>
+              </tr>
+              <tr>
+                <td>max ползунка (HTML)</td>
+                <td><code>10</code></td>
+                <td>Только UI; реальное η может быть больше, если введено в поле</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p class="doc-footnote">
+          Цепочка вызовов: <code>getLearningRate</code> → <code>LRLOGIC.runSteps</code> → <code>LRML.gradientStep(..., lr)</code>. Про сам шаг градиента см.
+          <a href="doc-gradient-step.html">страницу «Шаг градиента»</a>.
+        </p>
+      </main>
+    </div>
+  </body>
+</html>
