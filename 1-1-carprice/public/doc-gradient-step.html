@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Один шаг градиентного спуска (ml.js)</title>
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="doc.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main">К содержанию</a>
+    <header class="site-header">
+      <nav class="site-nav" aria-label="Разделы проекта">
+        <a href="index.html">Демо</a>
+        <a href="training-flow.html">Устройство</a>
+        <a href="doc-learning-rate.html">Скорость обучения</a>
+        <a href="doc-gradient-step.html" aria-current="page">Шаг градиента</a>
+      </nav>
+    </header>
+
+    <div class="doc-page">
+      <aside class="doc-toc" aria-label="Оглавление">
+        <p class="doc-toc__title">На странице</p>
+        <nav>
+          <ul>
+            <li><a href="#mse">MSE как функция w и b</a></li>
+            <li><a href="#derivatives">Частные производные</a></li>
+            <li><a href="#batch">Пакетный градиент по датасету</a></li>
+            <li><a href="#update">Правило обновления</a></li>
+            <li><a href="#code">Соответствие коду ml.js</a></li>
+            <li><a href="#logic">Вызов из logic.js</a></li>
+            <li><a href="#vector">Векторная форма (по желанию)</a></li>
+          </ul>
+        </nav>
+        <p class="doc-toc__title doc-toc__title--sub">Связанные страницы</p>
+        <ul>
+          <li><a href="training-flow.html">Устройство</a></li>
+          <li><a href="doc-learning-rate.html">Скорость обучения</a></li>
+        </ul>
+      </aside>
+
+      <main id="main" class="doc-main">
+        <p class="doc-parent"><a href="training-flow.html">← Устройство</a></p>
+        <h1>Один шаг градиентного спуска (<code>ml.js</code>)</h1>
+        <p class="doc-lead">
+          В демо минимизируется <strong>среднеквадратичная ошибка (MSE)</strong> по параметрам <strong>w</strong> и <strong>b</strong> линейной модели ŷ = w·x + b. Один шаг градиентного спуска реализован функцией <code>LRML.gradientStep(points, w, b, lr)</code> в файле <code>public/ml.js</code>.
+        </p>
+
+        <h2 id="mse">MSE как функция w и b</h2>
+        <p>На датасете из <strong>n</strong> точек (x<sub>i</sub>, y<sub>i</sub>):</p>
+        <ul>
+          <li>Ошибка на точке: e<sub>i</sub> = w·x<sub>i</sub> + b − y<sub>i</sub>.</li>
+          <li>MSE: L(w, b) = (1/n) · Σ<sub>i</sub> e<sub>i</sub>².</li>
+        </ul>
+        <p>В коде <code>mse</code> как раз считает среднее квадратов <code>err = w*p.x + b - p.y</code> по всем точкам.</p>
+
+        <h2 id="derivatives">Частные производные L по w и по b</h2>
+        <p>Цепное правило для одной точки: ∂(e²)/∂w = 2·e·x, ∂(e²)/∂b = 2·e. Усреднение по n даёт:</p>
+        <ul>
+          <li>∂L/∂w = (2/n) · Σ<sub>i</sub> e<sub>i</sub>·x<sub>i</sub></li>
+          <li>∂L/∂b = (2/n) · Σ<sub>i</sub> e<sub>i</sub></li>
+        </ul>
+        <p>Здесь e<sub>i</sub> в том же смысле, что <code>err</code> в цикле по точкам.</p>
+
+        <h2 id="batch">Пакетный градиент (full batch)</h2>
+        <p>
+          В демо используется <strong>полный</strong> градиент по всем точкам за один шаг (не мини-батч). В <code>gradientStep</code> сначала накапливаются суммы Σ(err·x) и Σ(err) без множителя 2/n, затем однократно умножаются на <code>(2/n)</code> — это и есть компоненты градиента ∇L = (∂L/∂w, ∂L/∂b).
+        </p>
+
+        <h2 id="update">Правило обновления</h2>
+        <p>Градиентный спуск:</p>
+        <ul>
+          <li>w<sub>новый</sub> = w − η · ∂L/∂w</li>
+          <li>b<sub>новый</sub> = b − η · ∂L/∂b</li>
+        </ul>
+        <p>Параметр <strong>η</strong> — скорость обучения; в коде аргумент называется <code>lr</code>. Подробнее про выбор и ввод η см. <a href="doc-learning-rate.html">страницу про learning rate</a>.</p>
+
+        <h2 id="code">Соответствие коду <code>ml.js</code></h2>
+        <p>Логика функции <code>gradientStep</code> строка в строку:</p>
+        <ol>
+          <li>Если точек нет (<code>n === 0</code>), вернуть исходные <code>w</code>, <code>b</code> без изменений.</li>
+          <li>Для каждой точки: <code>pred = w*x + b</code>, <code>err = pred - y</code>, накопить <code>dw += err * x</code>, <code>db += err</code>.</li>
+          <li><code>dw = (2/n) * dw</code>, <code>db = (2/n) * db</code>.</li>
+          <li>Вернуть <code>{ w: w - lr*dw, b: b - lr*db }</code> — входные <code>w</code>, <code>b</code> не мутируются внутри функции; новые значения подставляются в состояние снаружи.</li>
+        </ol>
+
+        <h2 id="logic">Вызов из <code>logic.js</code></h2>
+        <p>
+          В <code>LRLOGIC.runSteps</code> в цикле вызывается <code>LRML.gradientStep(points, w, b, lr)</code>; возвращённые веса записываются в замкнутые переменные модуля, затем увеличивается счётчик шага и в историю добавляется текущий <code>LRML.mse(points, w, b)</code>.
+        </p>
+
+        <h2 id="vector">Векторная форма (кратко)</h2>
+        <p>
+          Если собрать признаки в матрицу X с колонкой единиц для смещения, задача — минимизация ||Xθ − y||² по θ = (w, b)ᵀ. Градиент имеет вид (2/n)·Xᵀ(Xθ − y); покомпонентная запись совпадает с циклом по точкам в <code>ml.js</code>.
+        </p>
+
+        <p class="doc-footnote">
+          При изменении определения потерь или шага обновления правьте <code>ml.js</code> и эту страницу; обзор «Модель и потери» на
+          <a href="training-flow.html#model">Устройстве</a> держите согласованным.
+        </p>
+      </main>
+    </div>
+  </body>
+</html>

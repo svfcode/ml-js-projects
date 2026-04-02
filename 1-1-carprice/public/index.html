@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Оценка цены б/у авто по пробегу</title>
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="doc.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <nav class="site-nav" aria-label="Разделы проекта">
+        <a href="index.html" aria-current="page">Демо</a>
+      </nav>
+    </header>
+    <div class="wrap">
+      <header class="head">
+        <h1>Оценка стоимости б/у машины</h1>
+        <p class="sub">
+          Модель <code>ŷ = w·x + b</code>, где <code>x</code> — пробег (в десятках тыс. км), а <code>ŷ</code> —
+          цена (млн руб.).
+        </p>
+      </header>
+
+      <div class="grid">
+        <section class="panel panel--viz">
+          <h2>Пробег и цена</h2>
+          <div class="mode" role="group" aria-label="Источник данных">
+            <label class="mode__opt">
+              <input type="radio" name="dataMode" value="generate" checked />
+              <span>Генерация</span>
+            </label>
+            <label class="mode__opt">
+              <input type="radio" name="dataMode" value="manual" />
+              <span>Своими точками</span>
+            </label>
+          </div>
+          <p class="hint hint--manual" id="manualHint" hidden>
+            Левый клик — добавить точку. Правый клик — удалить ближайшую.
+          </p>
+          <div class="plot-scale" id="plotScaleRow" aria-label="Масштаб графика данных">
+            <span class="plot-scale__title">Масштаб: x (пробег), y (цена)</span>
+            <div class="plot-scale__grid">
+              <label class="plot-scale__field">
+                x min
+                <input type="number" id="plotXMin" step="any" value="0" />
+              </label>
+              <label class="plot-scale__field">
+                x max
+                <input type="number" id="plotXMax" step="any" value="35" />
+              </label>
+              <label class="plot-scale__field">
+                y min
+                <input type="number" id="plotYMin" step="any" value="0" />
+              </label>
+              <label class="plot-scale__field">
+                y max
+                <input type="number" id="plotYMax" step="any" value="4.5" />
+              </label>
+            </div>
+            <button type="button" class="btn btn--ghost btn--sm" id="btnPlotScaleReset">
+              Сбросить масштаб
+            </button>
+          </div>
+          <div class="chart-shell chart-shell--data" id="dataChartShell">
+            <canvas id="dataChart" aria-label="График пробега, цены и линии регрессии"></canvas>
+          </div>
+        </section>
+
+        <section class="panel panel--loss">
+          <h2>MSE по шагам</h2>
+          <div class="chart-shell chart-shell--loss">
+            <canvas id="lossChart" aria-label="График MSE по шагам"></canvas>
+          </div>
+        </section>
+      </div>
+
+      <section class="panel panel--controls">
+        <div class="metrics" id="metrics">
+          <span><strong>w</strong> <em id="valW">—</em></span>
+          <span><strong>b</strong> <em id="valB">—</em></span>
+          <span><strong>MSE</strong> <em id="valLoss">—</em></span>
+          <span><strong>шаг</strong> <em id="valStep">0</em></span>
+        </div>
+        <div class="controls">
+          <label class="label--lr">
+            Скорость обучения
+            <input type="range" id="lr" min="0.00001" max="0.01" step="0.00001" value="0.0005" />
+            <input
+              type="number"
+              id="lrNumber"
+              min="0.00001"
+              step="any"
+              value="0.0005"
+              inputmode="decimal"
+              aria-label="Скорость обучения, число"
+            />
+          </label>
+          <label id="nPointsRow">
+            Машин в выборке
+            <input type="range" id="nPoints" min="20" max="120" step="5" value="50" />
+            <span id="nPointsVal">50</span>
+          </label>
+          <div class="manual-params" aria-label="Ручные параметры модели">
+            <label for="manualW">
+              w
+              <input type="number" id="manualW" step="any" value="-0.0892" inputmode="decimal" />
+            </label>
+            <label for="manualB">
+              b
+              <input type="number" id="manualB" step="any" value="2.9960" inputmode="decimal" />
+            </label>
+            <label for="manualMse">
+              MSE
+              <input type="text" id="manualMse" value="—" readonly />
+            </label>
+            <button type="button" id="btnApplyParams" class="btn btn--ghost">Применить w,b</button>
+          </div>
+          <div class="btns">
+            <button type="button" id="btnReset" class="btn">Сгенерировать</button>
+            <button type="button" id="btnStep" class="btn btn--ghost">Один шаг</button>
+            <button type="button" id="btnStep10" class="btn btn--ghost">10 шагов</button>
+            <button type="button" id="btnRun" class="btn btn--primary">Обучать</button>
+            <button type="button" id="btnPause" class="btn btn--ghost" disabled>Пауза</button>
+          </div>
+          <div
+            class="step-log"
+            id="stepLogPanel"
+            aria-live="polite"
+            aria-label="Текстовый разбор последнего шага обучения"
+          >
+            <div class="step-log__head">Лог последнего шага</div>
+            <pre class="step-log__text" id="logStepText"></pre>
+          </div>
+        </div>
+      </section>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="ml.js"></script>
+    <script src="ui.js"></script>
+    <script src="logic.js"></script>
+    <script src="ux.js"></script>
+  </body>
+</html>

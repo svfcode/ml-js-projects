@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Устройство — линейная регрессия</title>
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="doc.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main">К содержанию</a>
+    <header class="site-header">
+      <nav class="site-nav" aria-label="Разделы проекта">
+        <a href="index.html">Демо</a>
+        <a href="training-flow.html" aria-current="page">Устройство</a>
+        <a href="doc-learning-rate.html">Скорость обучения</a>
+        <a href="doc-gradient-step.html">Шаг градиента</a>
+      </nav>
+    </header>
+
+    <div class="doc-page">
+      <aside class="doc-toc" aria-label="Оглавление">
+        <p class="doc-toc__title">На странице</p>
+        <nav>
+          <ul>
+            <li><a href="#intro">Введение</a></li>
+            <li><a href="#architecture">Архитектура скриптов</a></li>
+            <li><a href="#model">Модель и потери</a></li>
+            <li><a href="#state">Состояние: logic / ux</a></li>
+            <li><a href="#data">Откуда данные</a></li>
+            <li class="toc-sub"><a href="#data-generate">Генерация</a></li>
+            <li class="toc-sub"><a href="#data-manual">Своими точками</a></li>
+            <li class="toc-sub"><a href="#data-change">Изменение датасета</a></li>
+            <li><a href="#lr">Скорость обучения</a></li>
+            <li><a href="#gradient">Шаг градиента</a></li>
+            <li><a href="#runsteps">Пакет шагов и UI</a></li>
+            <li class="toc-sub"><a href="#runsteps-auto">Режим «Обучать»</a></li>
+            <li><a href="#draw">Отрисовка (ui.js)</a></li>
+            <li><a href="#pipeline">Цепочка до картинки</a></li>
+            <li><a href="#boot">Загрузка страницы</a></li>
+          </ul>
+        </nav>
+        <p class="doc-toc__title doc-toc__title--sub">Подробные разделы</p>
+        <nav aria-label="Отдельные статьи">
+          <ul>
+            <li><a href="doc-learning-rate.html">Скорость обучения (learning rate)</a></li>
+            <li><a href="doc-gradient-step.html">Один шаг градиента (<code>ml.js</code>)</a></li>
+          </ul>
+        </nav>
+      </aside>
+
+      <main id="main" class="doc-main">
+        <h1>Устройство</h1>
+        <p class="doc-lead" id="intro">
+          Как в демо устроены данные, шаг градиентного спуска, состояние и обновление интерфейса. Соответствует коду в
+          <code>public/ml.js</code>, <code>public/ui.js</code>, <code>public/logic.js</code>, <code>public/ux.js</code>.
+        </p>
+
+        <h2 id="architecture">Архитектура скриптов</h2>
+        <div class="doc-table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Файл</th>
+                <th>Роль</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>ml.js</code></td>
+                <td>Математика: синтетические данные, MSE, один шаг градиента. Без DOM.</td>
+              </tr>
+              <tr>
+                <td><code>ui.js</code></td>
+                <td>Chart.js: графики данных и MSE, метрики на экране, состояние кнопок.</td>
+              </tr>
+              <tr>
+                <td><code>logic.js</code></td>
+                <td>Состояние датасета и весов, история MSE, шаги <code>runSteps</code>, смена данных. Только <code>LRML</code>, без DOM.</td>
+              </tr>
+              <tr>
+                <td><code>ux.js</code></td>
+                <td>DOM, события, скорость обучения из полей ввода, цикл «Обучать», вызовы <code>LRLOGIC</code> и <code>LRUI</code>.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p>
+          Загрузка в <code>index.html</code>: CDN <strong>Chart.js</strong>, затем <code>ml.js</code> → <code>ui.js</code> → <code>logic.js</code> →
+          <code>ux.js</code>.
+        </p>
+
+        <h2 id="model">Модель и потери</h2>
+        <ul>
+          <li>Предсказание: <strong>ŷ = w·x + b</strong>.</li>
+          <li>Параметры: <strong>w</strong>, <strong>b</strong> (хранятся в <code>logic.js</code>, объект <code>LRLOGIC</code>).</li>
+          <li>Данные: массив точек <code>points</code> в <code>LRLOGIC</code>, каждая точка <code>{ x, y }</code>.</li>
+          <li>
+            Функция потерь: <strong>MSE</strong> — среднеквадратичная ошибка по всем точкам:
+            <ul>
+              <li>для каждой точки ошибка: <code>err = w·x + b − y</code>;</li>
+              <li><code>MSE = (1/n) · Σ err²</code>.</li>
+            </ul>
+          </li>
+        </ul>
+        <p>Реализация: <code>LRML.mse(points, w, b)</code> в <code>ml.js</code>.</p>
+
+        <h2 id="state">Состояние: <code>logic.js</code> и <code>ux.js</code></h2>
+        <p>В <code>LRLOGIC</code> (<code>logic.js</code>):</p>
+        <ul>
+          <li><code>points</code> — датасет.</li>
+          <li><code>w</code>, <code>b</code> — текущие веса.</li>
+          <li>
+            <code>lossHistory</code> — значения MSE после каждого шага (нижний график; история не обрезается).
+          </li>
+          <li><code>step</code> — счётчик шагов градиентного спуска (в метриках).</li>
+        </ul>
+        <p>В <code>ux.js</code> (только интерфейс автозапуска):</p>
+        <ul>
+          <li><code>running</code> — идёт ли непрерывное обучение («Обучать»).</li>
+          <li><code>animId</code> / <code>lastTick</code> — <code>requestAnimationFrame</code> и пауза ~55 ms между шагами.</li>
+        </ul>
+        <p>Сброс истории MSE и счётчика шагов: <code>LRLOGIC.resetTrainingOnly()</code>. После правки точек вручную — <code>LRLOGIC.resetAfterDatasetEdit()</code> (то же самое).</p>
+
+        <h2 id="data">Откуда берутся данные</h2>
+
+        <h3 id="data-generate">Режим «Генерация»</h3>
+        <ol>
+          <li>Берётся <strong>N</strong> из слайдера «Точек данных».</li>
+          <li>
+            Вызывается <code>LRML.generateSyntheticDataset(n)</code>:
+            <ul>
+              <li>случайно задаются «истинные» <strong>trueW</strong>, <strong>trueB</strong>;</li>
+              <li>для каждой из <strong>n</strong> точек: <strong>x</strong> ∈ [−1, 1], шум ∈ [−0.35, 0.35], <strong>y = trueW·x + trueB + шум</strong>.</li>
+            </ul>
+          </li>
+          <li>Внутри <code>LRLOGIC.generateSynthetic(n)</code> вызываются <code>LRML.generateSyntheticDataset</code>, <code>LRML.randomWeights()</code> и <code>resetTrainingOnly()</code>.</li>
+          <li>В <code>ux.js</code>: <code>generateData()</code> вызывает <code>LRLOGIC.generateSynthetic</code>, затем <code>syncMetrics()</code> и <code>drawAll()</code>.</li>
+        </ol>
+        <p>Триггеры: переключение на режим «Генерация», кнопка «Сгенерировать», старт страницы (после загрузки).</p>
+
+        <h3 id="data-manual">Режим «Своими точками»</h3>
+        <ul>
+          <li><strong>ЛКМ</strong> — <code>LRLOGIC.tryAddPoint(x, y)</code> (лимит <code>LRLOGIC.MAX_MANUAL_POINTS</code>, 200).</li>
+          <li><strong>ПКМ</strong> — удалить ближайшую точку (радиус попадания в <code>ui.js</code>).</li>
+          <li>Переключение режима или «Очистить точки» — <code>LRLOGIC.clearForManualMode()</code>.</li>
+        </ul>
+
+        <h3 id="data-change">Изменение датасета во время работы</h3>
+        <p><code>onDatasetChanged()</code> (добавление/удаление точки вручную):</p>
+        <ol>
+          <li><code>setRunning(false)</code> — остановка автоматического обучения.</li>
+          <li><code>LRLOGIC.resetAfterDatasetEdit()</code> — чистая история MSE и счётчик шагов.</li>
+          <li>Обновление метрик, перерисовка, <code>updateModeUI()</code>.</li>
+        </ol>
+
+        <h2 id="lr">Скорость обучения</h2>
+        <p>
+          Коэффициент <strong>η</strong> (learning rate) задаётся в интерфейсе и участвует в каждом вызове <code>LRLOGIC.runSteps(n, lr)</code>. Реализация ползунка, числового поля, ограничений и того, как одно η действует на пачку шагов, разобрана на отдельной странице.
+        </p>
+        <p class="doc-see-also">
+          <a href="doc-learning-rate.html">Скорость обучения (learning rate) — подробно</a>
+        </p>
+
+        <h2 id="gradient">Шаг градиентного спуска</h2>
+        <p>
+          Обновление <strong>w</strong> и <strong>b</strong> по градиенту среднеквадратичной ошибки сосредоточено в <code>LRML.gradientStep</code> в <code>ml.js</code>. Вывод частных производных MSE, связь с кодом и вызов из <code>logic.js</code> описаны отдельно.
+        </p>
+        <p class="doc-see-also">
+          <a href="doc-gradient-step.html">Один шаг градиентного спуска (<code>ml.js</code>) — подробно</a>
+        </p>
+
+        <h2 id="runsteps">Пакет шагов и UI</h2>
+        <h3><code>LRLOGIC.runSteps(n, lr)</code> (<code>logic.js</code>)</h3>
+        <p>Условия выхода: нет точек или <strong>n &lt; 1</strong>.</p>
+        <p>Цикл <strong>n</strong> раз:</p>
+        <ol>
+          <li><code>next = LRML.gradientStep(...)</code> с переданным <code>lr</code> → записать <strong>w</strong>, <strong>b</strong> в <code>LRLOGIC</code>.</li>
+          <li><code>step += 1</code>.</li>
+          <li>В <code>lossHistory</code> добавить <code>LRML.mse(...)</code>.</li>
+        </ol>
+        <p><code>ux.js</code>: <code>runTrainingSteps(n)</code> вызывает <code>getLearningRate()</code> и <code>LRLOGIC.runSteps(n, lr)</code>, затем <code>syncMetrics()</code> и <code>drawAll()</code>.</p>
+        <p>Кнопки: «Один шаг» / «10 шагов» — <code>runTrainingSteps(1)</code> и <code>runTrainingSteps(10)</code>.</p>
+
+        <h3 id="runsteps-auto">Режим «Обучать»</h3>
+        <ol>
+          <li><code>setRunning(true)</code> — блокировка кнопок по правилам <code>ui.js</code>, старт цикла.</li>
+          <li>На каждом кадре <code>tick</code>: если прошло ≥ <strong>55 ms</strong>, вызывается <code>runTrainingSteps(1)</code>.</li>
+          <li>Снова планируется <code>requestAnimationFrame(tick)</code>.</li>
+          <li>«Пауза» — <code>setRunning(false)</code>, отмена <code>requestAnimationFrame</code>.</li>
+        </ol>
+        <p>При автоматическом режиме каждые ~55 ms выполняется один полный шаг (с перерисовкой после шага).</p>
+
+        <h2 id="draw">Отрисовка (ui.js + Chart.js)</h2>
+        <p>
+          Подключается <strong>Chart.js</strong> (CDN). <code>initCharts</code> создаёт смешанный график (scatter + линия) и график MSE;
+          <code>updateDataChart</code> / <code>updateLossChart</code> обновляют данные. Подсказки при наведении показывают координаты точек и пару «шаг — MSE».
+        </p>
+        <p><code>updateMetrics</code> пишет в DOM текущие <strong>w</strong>, <strong>b</strong>, MSE, <strong>step</strong>.</p>
+
+        <h2 id="pipeline">Сводная цепочка «от клика до картинки»</h2>
+        <ol>
+          <li>Пользователь нажимает «Один шаг» / «10 шагов» или идёт тик «Обучать».</li>
+          <li><code>runTrainingSteps(n)</code> передаёт η в <code>LRLOGIC.runSteps</code>; <strong>n</strong> раз обновляются <strong>w</strong>, <strong>b</strong>, дополняется <code>lossHistory</code>.</li>
+          <li><code>LRUI.updateMetrics</code> + <code>LRUI.updateDataChart</code> + <code>LRUI.updateLossChart</code> обновляют экран.</li>
+        </ol>
+
+        <h2 id="boot">Загрузка страницы (демо)</h2>
+        <ol>
+          <li><code>syncLrFromSlider()</code> — согласовать ползунок и поле скорости обучения.</li>
+          <li><code>generateData()</code> — первый синтетический датасет и случайные <strong>w</strong>, <strong>b</strong>.</li>
+          <li><code>updateModeUI()</code> — видимость слайдера числа точек, подсказка ручного режима, подписи кнопок, доступность «Обучать» / шагов при пустых точках.</li>
+        </ol>
+
+        <p class="doc-footnote">
+          Если меняешь формулы в <code>ml.js</code>, обнови страницу
+          <a href="doc-gradient-step.html">«Шаг градиента»</a> и при необходимости блок «Модель и потери» здесь.
+        </p>
+      </main>
+    </div>
+  </body>
+</html>
