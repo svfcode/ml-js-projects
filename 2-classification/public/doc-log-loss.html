@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Log-loss и кросс-энтропия — классификация</title>
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="doc.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main">К содержанию</a>
+    <header class="site-header">
+      <nav class="site-nav" aria-label="Разделы">
+        <a href="index.html">Демо</a>
+        <a href="doc-log-loss.html" aria-current="page">Log-loss</a>
+      </nav>
+    </header>
+
+    <div class="doc-page">
+      <aside class="doc-toc" aria-label="Оглавление">
+        <p class="doc-toc__title">На странице</p>
+        <nav>
+          <ul>
+            <li><a href="#intro">Зачем log-loss</a></li>
+            <li><a href="#model">Модель в коде</a></li>
+            <li><a href="#formula">Формула</a></li>
+            <li><a href="#impl">Реализация logLoss</a></li>
+            <li><a href="#grad">Градиент и шаг</a></li>
+            <li><a href="#pipeline">Связка logic → ux</a></li>
+            <li><a href="#log-panel">Панель «Лог»</a></li>
+          </ul>
+        </nav>
+        <p class="doc-toc__title doc-toc__title--sub">Демо</p>
+        <nav>
+          <ul>
+            <li><a href="index.html">Интерактивная классификация</a></li>
+          </ul>
+        </nav>
+      </aside>
+
+      <main id="main" class="doc-main">
+        <h1>Log-loss (бинарная кросс-энтропия)</h1>
+        <p class="doc-lead" id="intro">
+          В демо <a href="index.html">классификации</a> обучение идёт на минимизацию
+          <strong>средней log-loss</strong> — это то же самое, что средняя
+          <strong>бинарная кросс-энтропия</strong> между истинной меткой <code>y ∈ {0, 1}</code> и
+          предсказанной вероятностью класса 1: <code>a = P(y=1 | x)</code>.
+        </p>
+
+        <h2 id="model">Модель в коде (<code>public/ml.js</code>)</h2>
+        <p>
+          Линейная часть (логит): <code>z = w₁·x₁ + w₂·x₂ + b</code> — функция
+          <code>linearPart(p, w1, w2, b)</code> (строки ~58–60).
+        </p>
+        <p>
+          Вероятность: <code>a = σ(z)</code> — <code>sigmoid(z)</code> (строки ~14–17). Константа
+          <code>LOG_EPS</code> (строка ~8) используется только внутри <code>logLoss</code>, чтобы не брать
+          <code>log(0)</code>.
+        </p>
+
+        <h2 id="formula">Формула потерь на одной точке</h2>
+        <p>Для одной пары <code>(y, a)</code>:</p>
+        <pre><code>ℓ(y, a) = −( y·log(a) + (1−y)·log(1−a) )</code></pre>
+        <p>
+          Если <code>y = 1</code>, остаётся <code>−log(a)</code>: чем выше <code>a</code>, тем меньше штраф. Если
+          <code>y = 0</code>, остаётся <code>−log(1−a)</code>: чем ниже <code>a</code>, тем лучше.
+        </p>
+        <p>
+          По всему датасету из <code>n</code> точек в демо берётся <strong>среднее</strong> — см. деление на
+          <code>n</code> в <code>logLoss</code> (строка ~73, цикл ~67–72).
+        </p>
+
+        <h2 id="impl">Реализация <code>LRML.logLoss</code></h2>
+        <p>Фрагмент из <code>public/ml.js</code> (номера строк могут слегка сдвинуться при правках файла):</p>
+        <pre><code>function logLoss(points, w1, w2, b) {
+  const n = points.length;
+  if (!n) return 0;
+  let s = 0;
+  for (const p of points) {
+    const a = sigmoid(linearPart(p, w1, w2, b));
+    const y = p.label;
+    const t = Math.min(1 - LOG_EPS, Math.max(LOG_EPS, a));
+    s += -(y * Math.log(t) + (1 - y) * Math.log(1 - t));
+  }
+  return s / n;
+}</code></pre>
+        <p>
+          Здесь <code>p.label</code> — это \(y\), <code>a</code> — предсказание после сигмоиды. Переменная
+          <code>t</code> — «зажатый» <code>a</code> в \([\text{LOG_EPS},\,1-\text{LOG_EPS}]\), чтобы логарифмы
+          оставались конечными при экстремальных численных значениях.
+        </p>
+
+        <h2 id="grad">Градиент и <code>LRML.gradientStep</code></h2>
+        <p>
+          Для сигмоиды и кросс-энтропии производная по логиту сводится к простой разности
+          <code>err = a − y</code>. Градиент среднего loss по весам (упрощённо):
+        </p>
+        <pre><code>∂L/∂w₁ ≈ (1/n) · Σ (a − y)·x₁   (аналогично w₂ и x₂; для b — множитель 1)</code></pre>
+        <p>Это ровно то, что делает цикл в <code>gradientStep</code> (строки ~99–104), затем усреднение <code>k = 1/n</code> и обновление с шагом <code>lr</code> (строки ~106–114).</p>
+        <p>
+          В обучении вызывается не «голый» <code>gradientStep</code> для лога, а
+          <code>gradientStepTrace</code> (с ~строки 126): он повторяет ту же математику и дополнительно собирает
+          текст для панели «Лог последнего шага».
+        </p>
+
+        <h2 id="pipeline">Связка <code>logic.js</code> → график и метрики</h2>
+        <p>
+          <code>LRLOGIC.runSteps</code> в <code>public/logic.js</code> в цикле вызывает
+          <code>LRML.gradientStepTrace</code>, обновляет <code>w1, w2, b</code>, увеличивает
+          <code>step</code>, пишет в <code>lossHistory</code> результат <code>LRML.logLoss(...)</code> после
+          каждого шага — это значения на графике «Log-loss по шагам».
+        </p>
+        <p>
+          Текущие <code>log-loss</code> и <code>accuracy</code> в шапке панели считаются в
+          <code>ux.js</code> через <code>LRLOGIC.currentLogLoss()</code> и
+          <code>LRLOGIC.currentAccuracy()</code> (внутри — снова <code>LRML.logLoss</code> и
+          <code>LRML.accuracy</code>).
+        </p>
+
+        <h2 id="log-panel">Панель «Лог последнего шага»</h2>
+        <p>
+          Под кнопками на <a href="index.html">демо-странице</a> выводится <code>LRLOGIC.getStepLogText()</code>:
+          после хотя бы одного шага это текст последнего вызова <code>gradientStepTrace</code>; до первого шага —
+          заглушка с текущими весами и <code>logLoss</code>.
+        </p>
+
+        <p class="doc-footnote">
+          Файлы: <code>public/ml.js</code> (модель, loss, шаг), <code>public/logic.js</code> (состояние,
+          <code>runSteps</code>, <code>getStepLogText</code>), <code>public/ux.js</code> (обновление
+          <code>#logStepText</code> в <code>drawAll</code>).
+        </p>
+      </main>
+    </div>
+  </body>
+</html>

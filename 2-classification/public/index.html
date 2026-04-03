@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Классификация — логистическая регрессия</title>
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="doc.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <nav class="site-nav" aria-label="Разделы">
+        <a href="index.html" aria-current="page">Демо</a>
+        <a href="doc-log-loss.html">Log-loss</a>
+      </nav>
+    </header>
+    <div class="wrap">
+      <header class="head">
+        <h1>Бинарная классификация на плоскости</h1>
+        <p class="sub">
+          Два класса точек на плоскости признаков <code>(x₁, x₂)</code>. Модель:
+          <code>P(y=1) = σ(w₁x₁ + w₂x₂ + b)</code>. Обучение — градиентный спуск по
+          <strong>log-loss</strong> (кросс-энтропия). Оранжевая линия —
+          <strong>граница решения</strong> <code>w₁x₁ + w₂x₂ + b = 0</code>.
+          Подробности — на странице <a href="doc-log-loss.html">Log-loss (кросс-энтропия)</a>.
+        </p>
+      </header>
+
+      <div class="grid">
+        <section class="panel panel--viz">
+          <h2>Данные и граница</h2>
+          <div class="mode" role="group" aria-label="Источник данных">
+            <label class="mode__opt">
+              <input type="radio" name="dataMode" value="generate" checked />
+              <span>Генерация</span>
+            </label>
+            <label class="mode__opt">
+              <input type="radio" name="dataMode" value="manual" />
+              <span>Своими точками</span>
+            </label>
+          </div>
+          <p class="hint hint--manual" id="manualHint" hidden>
+            ЛКМ — добавить точку выбранного класса. ПКМ — удалить ближайшую точку.
+          </p>
+          <div id="classPickRow" class="class-pick" hidden role="group" aria-label="Класс новой точки">
+            <span class="class-pick__title">Класс при клике:</span>
+            <label class="class-pick__opt">
+              <input type="radio" name="pointClass" value="0" checked />
+              0 (бирюзовый)
+            </label>
+            <label class="class-pick__opt">
+              <input type="radio" name="pointClass" value="1" />
+              1 (коралловый)
+            </label>
+          </div>
+          <div class="plot-scale" id="plotScaleRow" aria-label="Масштаб графика">
+            <span class="plot-scale__title">Масштаб осей</span>
+            <div class="plot-scale__grid">
+              <label class="plot-scale__field">
+                x₁ min
+                <input type="number" id="plotXMin" step="any" value="-1.2" />
+              </label>
+              <label class="plot-scale__field">
+                x₁ max
+                <input type="number" id="plotXMax" step="any" value="1.2" />
+              </label>
+              <label class="plot-scale__field">
+                x₂ min
+                <input type="number" id="plotYMin" step="any" value="-1.5" />
+              </label>
+              <label class="plot-scale__field">
+                x₂ max
+                <input type="number" id="plotYMax" step="any" value="1.5" />
+              </label>
+            </div>
+            <button type="button" class="btn btn--ghost btn--sm" id="btnPlotScaleReset">
+              Сбросить масштаб
+            </button>
+          </div>
+          <div class="chart-shell chart-shell--data" id="dataChartShell">
+            <canvas id="dataChart" aria-label="Классы и граница решения"></canvas>
+          </div>
+        </section>
+
+        <section class="panel panel--loss">
+          <h2>Log-loss по шагам</h2>
+          <div class="chart-shell chart-shell--loss">
+            <canvas id="lossChart" aria-label="График log-loss"></canvas>
+          </div>
+        </section>
+      </div>
+
+      <section class="panel panel--controls">
+        <div class="metrics" id="metrics">
+          <span><strong>w₁</strong> <em id="valW1">—</em></span>
+          <span><strong>w₂</strong> <em id="valW2">—</em></span>
+          <span><strong>b</strong> <em id="valB">—</em></span>
+          <span><strong>log-loss</strong> <em id="valLoss">—</em></span>
+          <span><strong>accuracy</strong> <em id="valAcc">—</em></span>
+          <span><strong>шаг</strong> <em id="valStep">0</em></span>
+        </div>
+        <div class="controls">
+          <label class="label--lr">
+            Скорость обучения η
+            <input type="range" id="lr" min="0.001" max="5" step="0.001" value="0.8" />
+            <input
+              type="number"
+              id="lrNumber"
+              min="0.001"
+              step="any"
+              value="0.8"
+              inputmode="decimal"
+              aria-label="Скорость обучения, число"
+            />
+          </label>
+          <label id="nPointsRow">
+            Точек всего
+            <input type="range" id="nPoints" min="20" max="120" step="4" value="48" />
+            <span id="nPointsVal">48</span>
+          </label>
+          <div class="btns">
+            <button type="button" id="btnReset" class="btn">Сгенерировать</button>
+            <button type="button" id="btnStep" class="btn btn--ghost">Один шаг</button>
+            <button type="button" id="btnStep10" class="btn btn--ghost">10 шагов</button>
+            <button type="button" id="btnRun" class="btn btn--primary">Обучать</button>
+            <button type="button" id="btnPause" class="btn btn--ghost" disabled>Пауза</button>
+          </div>
+          <div
+            class="step-log"
+            id="stepLogPanel"
+            aria-live="polite"
+            aria-label="Текстовый разбор последнего шага и log-loss"
+          >
+            <div class="step-log__head">
+              Лог последнего шага
+              <a class="step-log__link" href="doc-log-loss.html">про log-loss →</a>
+            </div>
+            <pre class="step-log__text" id="logStepText"></pre>
+          </div>
+        </div>
+      </section>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="ml.js"></script>
+    <script src="ui.js"></script>
+    <script src="logic.js"></script>
+    <script src="ux.js"></script>
+  </body>
+</html>
