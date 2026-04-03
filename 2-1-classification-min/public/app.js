@@ -92,6 +92,7 @@
   }
 
   // функция для выполнения одного шага обучения
+  // ∂L/∂w ≈ (1/n) * Σ(err_i * x_i), то есть делим накопленную сумму на количество точек n
   function oneStep() {
     const pts = canvas.points;
     const n = pts.length;
