@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>LR min — ŷ = w·x + b</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <h1>Линейная регрессия (минимум кода)</h1>
+    <p>Модель <code>ŷ = w·x + b</code>, потери MSE, batch-градиент. Клик по графику — добавить точку, ПКМ — удалить ближайшую.</p>
+    <div class="metrics">
+      <span>w <em id="vw">0</em></span>
+      <span>b <em id="vb">0</em></span>
+      <span>MSE <em id="vm">—</em></span>
+      <span>шаг <em id="vs">0</em></span>
+    </div>
+    <label>η <input type="number" id="lr" value="0.05" min="0.001" step="any" /></label>
+    <div class="btns">
+      <button type="button" id="step">Шаг</button>
+      <button type="button" id="run" class="primary">Обучать</button>
+      <button type="button" id="stop" disabled>Стоп</button>
+    </div>
+    <div class="chart chart--clickable"><canvas id="c" width="1000" height="500"></canvas></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="ui.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>
