@@ -1,0 +1,268 @@
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 5.5rem;
+}
+
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: rgba(15, 20, 25, 0.92);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--border);
+}
+
+.site-header .site-nav {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 0.65rem 1.25rem;
+  display: flex;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.site-nav a {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--muted);
+  text-decoration: none;
+  padding: 0.4rem 0.75rem;
+  border-radius: 8px;
+  border: 1px solid transparent;
+}
+
+.site-nav a:hover {
+  color: var(--accent);
+  border-color: var(--border);
+  background: var(--surface);
+}
+
+.site-nav a[aria-current="page"] {
+  color: var(--text);
+  border-color: var(--accent-dim);
+  background: rgba(61, 214, 198, 0.1);
+}
+
+.doc-page {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 1.25rem 1.25rem 3rem;
+  display: grid;
+  gap: 1.5rem;
+}
+
+@media (min-width: 860px) {
+  .doc-page {
+    grid-template-columns: 200px 1fr;
+    align-items: start;
+  }
+}
+
+.doc-toc {
+  position: sticky;
+  top: 3.5rem;
+}
+
+.doc-toc__title {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  margin: 0 0 0.5rem;
+}
+
+.doc-toc__title--sub {
+  margin-top: 1rem;
+}
+
+.doc-parent {
+  margin: 0 0 0.75rem;
+  font-size: 0.9rem;
+}
+
+.doc-parent a {
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.doc-parent a:hover {
+  text-decoration: underline;
+}
+
+.doc-see-also {
+  margin: 0.5rem 0 1.25rem;
+  padding: 0.65rem 0.85rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: rgba(61, 214, 198, 0.08);
+}
+
+.doc-see-also a {
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.doc-see-also a:hover {
+  text-decoration: underline;
+}
+
+.doc-toc ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.doc-toc li {
+  margin: 0 0 0.2rem;
+}
+
+.doc-toc a {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--muted);
+  text-decoration: none;
+  padding: 0.25rem 0;
+  border-left: 2px solid transparent;
+  padding-left: 0.5rem;
+  margin-left: -0.5rem;
+}
+
+.doc-toc a:hover {
+  color: var(--accent);
+}
+
+.doc-toc a:focus-visible {
+  outline: 2px solid var(--accent-dim);
+  outline-offset: 2px;
+}
+
+.doc-toc .toc-sub {
+  padding-left: 0.75rem;
+  font-size: 0.78rem;
+}
+
+.doc-main {
+  min-width: 0;
+}
+
+.doc-lead {
+  font-size: 1rem;
+  color: var(--muted);
+  margin: 0 0 1.5rem;
+  line-height: 1.55;
+}
+
+.doc-main h1 {
+  font-size: 1.65rem;
+  font-weight: 700;
+  margin: 0 0 0.75rem;
+  letter-spacing: -0.02em;
+}
+
+.doc-main h2 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin: 2rem 0 0.65rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--border);
+  scroll-margin-top: 5rem;
+}
+
+.doc-main h2:first-of-type {
+  border-top: none;
+  padding-top: 0;
+  margin-top: 0;
+}
+
+.doc-main h3 {
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin: 1.25rem 0 0.5rem;
+  color: var(--text);
+}
+
+.doc-main p,
+.doc-main li {
+  font-size: 0.92rem;
+  line-height: 1.55;
+}
+
+.doc-main p {
+  margin: 0 0 0.75rem;
+}
+
+.doc-main ul,
+.doc-main ol {
+  margin: 0 0 0.75rem;
+  padding-left: 1.25rem;
+}
+
+.doc-main li {
+  margin-bottom: 0.35rem;
+}
+
+.doc-main code {
+  font-family: ui-monospace, monospace;
+  font-size: 0.86em;
+  background: var(--surface);
+  padding: 0.12em 0.35em;
+  border-radius: 4px;
+  color: var(--accent);
+}
+
+.doc-table-wrap {
+  overflow-x: auto;
+  margin: 0 0 1rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.doc-main table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+
+.doc-main th,
+.doc-main td {
+  text-align: left;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.doc-main th {
+  background: var(--surface);
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.doc-main tr:last-child td {
+  border-bottom: none;
+}
+
+.doc-footnote {
+  margin-top: 2rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  z-index: 100;
+  padding: 0.5rem 1rem;
+  background: var(--accent);
+  color: #0a0e12;
+  font-weight: 600;
+}
+
+.skip-link:focus {
+  left: 1rem;
+  top: 0.5rem;
+}

@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Цена б/у авто: пробег и объём двигателя</title>
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="doc.css" />
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <header class="site-header">
+      <nav class="site-nav" aria-label="Разделы проекта">
+        <a href="index.html" aria-current="page">Демо</a>
+      </nav>
+    </header>
+    <div class="wrap">
+      <header class="head">
+        <h1>Два признака: пробег и объём</h1>
+        <p class="sub">
+          Модель <code>ŷ = w₁·x + w₂·v + b</code>: <code>x</code> — пробег (десятки тыс. км),
+          <code>v</code> — объём двигателя (л), <code>ŷ</code> — цена (млн руб.). Ниже — 3D-сцена
+          (Three.js): <strong>X</strong> — пробег, <strong>Y</strong> — цена, <strong>Z</strong> — объём;
+          оранжевая плоскость — регрессия. На 2D-графике линия — сечение при среднем объёме.
+        </p>
+      </header>
+
+      <div class="grid">
+        <section class="panel panel--viz">
+          <h2>Пробег и цена (объём — в подсказке)</h2>
+          <div class="mode" role="group" aria-label="Источник данных">
+            <label class="mode__opt">
+              <input type="radio" name="dataMode" value="generate" checked />
+              <span>Генерация</span>
+            </label>
+            <label class="mode__opt">
+              <input type="radio" name="dataMode" value="manual" />
+              <span>Своими точками</span>
+            </label>
+          </div>
+          <p class="hint hint--manual" id="manualHint" hidden>
+            Левый клик — добавить точку (пробег и цена с графика). Объём двигателя для новой точки берётся из поля ниже.
+            Правый клик — удалить ближайшую.
+          </p>
+          <label id="manualEngineRow" class="manual-engine-row" hidden>
+            Объём при клике (л)
+            <input type="number" id="manualEngineVol" min="0.8" max="6" step="0.1" value="2.0" />
+          </label>
+          <div class="plot-scale" id="plotScaleRow" aria-label="Масштаб графика данных">
+            <span class="plot-scale__title">Масштаб: x (пробег), y (цена)</span>
+            <div class="plot-scale__grid">
+              <label class="plot-scale__field">
+                x min
+                <input type="number" id="plotXMin" step="any" value="0" />
+              </label>
+              <label class="plot-scale__field">
+                x max
+                <input type="number" id="plotXMax" step="any" value="35" />
+              </label>
+              <label class="plot-scale__field">
+                y min
+                <input type="number" id="plotYMin" step="any" value="0" />
+              </label>
+              <label class="plot-scale__field">
+                y max
+                <input type="number" id="plotYMax" step="any" value="4.5" />
+              </label>
+            </div>
+            <button type="button" class="btn btn--ghost btn--sm" id="btnPlotScaleReset">
+              Сбросить масштаб
+            </button>
+          </div>
+          <div class="chart-shell chart-shell--data" id="dataChartShell">
+            <canvas id="dataChart" aria-label="График пробега и цены"></canvas>
+          </div>
+        </section>
+
+        <section class="panel panel--loss">
+          <h2>MSE по шагам</h2>
+          <div class="chart-shell chart-shell--loss">
+            <canvas id="lossChart" aria-label="График MSE по шагам"></canvas>
+          </div>
+        </section>
+      </div>
+
+      <section class="panel panel--viz3d">
+        <h2>3D (Three.js): пробег — X, цена — Y, объём — Z</h2>
+        <div id="viz3dRoot" class="viz3d__canvas-wrap" aria-label="Трёхмерный график и плоскость регрессии"></div>
+        <p class="viz3d__hint">
+          Вращение — левая кнопка мыши, панорама — правая (или Shift+ЛКМ), масштаб — колёсико.
+        </p>
+      </section>
+
+      <section class="panel panel--controls">
+        <div class="metrics" id="metrics">
+          <span><strong>w₁</strong> <em id="valW1">—</em></span>
+          <span><strong>w₂</strong> <em id="valW2">—</em></span>
+          <span><strong>b</strong> <em id="valB">—</em></span>
+          <span><strong>MSE</strong> <em id="valLoss">—</em></span>
+          <span><strong>шаг</strong> <em id="valStep">0</em></span>
+        </div>
+        <div class="controls">
+          <label class="label--lr">
+            Скорость обучения
+            <input type="range" id="lr" min="0.00001" max="0.01" step="0.00001" value="0.0005" />
+            <input
+              type="number"
+              id="lrNumber"
+              min="0.00001"
+              step="any"
+              value="0.0005"
+              inputmode="decimal"
+              aria-label="Скорость обучения, число"
+            />
+          </label>
+          <label id="nPointsRow">
+            Машин в выборке
+            <input type="range" id="nPoints" min="20" max="120" step="5" value="50" />
+            <span id="nPointsVal">50</span>
+          </label>
+          <div class="manual-params manual-params--3w" aria-label="Ручные параметры модели">
+            <label for="manualW1">
+              w₁
+              <input type="number" id="manualW1" step="any" value="-0.08" inputmode="decimal" />
+            </label>
+            <label for="manualW2">
+              w₂
+              <input type="number" id="manualW2" step="any" value="0.25" inputmode="decimal" />
+            </label>
+            <label for="manualB">
+              b
+              <input type="number" id="manualB" step="any" value="2.8" inputmode="decimal" />
+            </label>
+            <label for="manualMse">
+              MSE
+              <input type="text" id="manualMse" value="—" readonly />
+            </label>
+            <button type="button" id="btnApplyParams" class="btn btn--ghost">Применить w₁,w₂,b</button>
+          </div>
+          <div class="btns">
+            <button type="button" id="btnReset" class="btn">Сгенерировать</button>
+            <button type="button" id="btnStep" class="btn btn--ghost">Один шаг</button>
+            <button type="button" id="btnStep10" class="btn btn--ghost">10 шагов</button>
+            <button type="button" id="btnRun" class="btn btn--primary">Обучать</button>
+            <button type="button" id="btnPause" class="btn btn--ghost" disabled>Пауза</button>
+          </div>
+          <div
+            class="step-log"
+            id="stepLogPanel"
+            aria-live="polite"
+            aria-label="Текстовый разбор последнего шага обучения"
+          >
+            <div class="step-log__head">Лог последнего шага</div>
+            <pre class="step-log__text" id="logStepText"></pre>
+          </div>
+        </div>
+      </section>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="ml.js"></script>
+    <script src="ui.js"></script>
+    <script src="logic.js"></script>
+    <script src="ux.js"></script>
+    <script type="module" src="viz3d.js"></script>
+  </body>
+</html>
