@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Сигмоида и клиппинг — пояснения</title>
+    <link rel="stylesheet" href="styles.css" />
+    <style>
+      body {
+        max-width: 760px;
+      }
+      main {
+        margin-top: 0.5rem;
+      }
+      h1 {
+        font-size: 1.35rem;
+        margin-bottom: 0.5rem;
+      }
+      h2 {
+        font-size: 1.05rem;
+        margin-top: 1.1rem;
+        margin-bottom: 0.4rem;
+      }
+      p {
+        line-height: 1.55;
+      }
+      ul {
+        padding-left: 1.2rem;
+      }
+      li {
+        margin: 0.2rem 0;
+      }
+      .formula {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+          "Liberation Mono", "Courier New", monospace;
+        font-size: 0.9rem;
+        background: #1a222c;
+        padding: 0.35rem 0.5rem;
+        border-radius: 4px;
+        border: 1px solid rgba(45, 58, 71, 0.9);
+        margin: 0.4rem 0;
+      }
+      .muted {
+        color: var(--m);
+        font-size: 0.9rem;
+      }
+      a {
+        color: var(--a);
+        text-decoration: none;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <nav class="muted" aria-label="Страницы демо">
+        <a href="index.html">← назад к демо</a>
+      </nav>
+
+      <h1>Сигмоида и клиппинг в логистической регрессии</h1>
+
+      <p class="muted">
+        Страница относится к демо <code>2-1-classification-min</code> и
+        объясняет, что означает формула
+        <code>P(y=1 | x) = σ(w₁·x₁ + w₂·x₂ + b)</code> и зачем может быть нужен
+        клиппинг.
+      </p>
+
+      <h2>Что делает модель</h2>
+      <p>
+        В логистической регрессии мы хотим предсказывать
+        <code>P(y=1 | x)</code> — вероятность того, что точка с признаками
+        <code>x</code> относится к классу <strong>1</strong>.
+      </p>
+      <div class="formula">
+        P(y = 1 | x) = σ(w₁·x₁ + w₂·x₂ + b)
+      </div>
+      <ul>
+        <li>
+          <strong>x = (x₁, x₂)</strong> — координаты точки на плоскости
+          признаков.
+        </li>
+        <li>
+          <strong>w₁, w₂</strong> — веса (как сильно каждая координата влияет
+          на решение).
+        </li>
+        <li>
+          <strong>b</strong> — смещение (bias), сдвигает границу решения.
+        </li>
+        <li>
+          <strong>σ(z)</strong> — сигмоида. Она берёт любое число
+          <code>z</code> и возвращает значение из диапазона <code>[0, 1]</code>
+          — удобно интерпретировать как вероятность.
+        </li>
+      </ul>
+
+      <p>
+        Фраза <em>«точки двух классов»</em> означает, что каждая точка на
+        графике хранится с меткой <code>label</code>:
+      </p>
+      <ul>
+        <li><code>label = 0</code> — класс 0 (один цвет);</li>
+        <li><code>label = 1</code> — класс 1 (другой цвет).</li>
+      </ul>
+
+      <h2>Сигмоида σ(z)</h2>
+      <p>Классическая сигмоида определяется как:</p>
+      <div class="formula">
+        σ(z) = 1 / (1 + e<sup>−z</sup>)
+      </div>
+      <ul>
+        <li>при больших положительных <code>z</code> значение σ(z) ≈ 1;</li>
+        <li>при больших отрицательных <code>z</code> значение σ(z) ≈ 0;</li>
+        <li>при <code>z = 0</code> получаем σ(0) = 0.5.</li>
+      </ul>
+
+      <h2>Что такое клиппинг</h2>
+      <p>
+        <strong>Клиппинг (clipping)</strong> — это ограничение значения
+        некоторыми порогами:
+      </p>
+      <div class="formula">
+        x<sub>clipped</sub> = min( max(x, low), high )
+      </div>
+      <p>Или в виде кода:</p>
+      <div class="formula">
+        if (x &gt; high) x = high;<br />
+        if (x &lt; low) x = low;
+      </div>
+
+      <h2>Зачем клиппинг в логистической регрессии</h2>
+      <p>Основные причины:</p>
+      <ul>
+        <li>
+          <strong>Численная стабильность</strong> —
+          <code>exp(z)</code> и <code>log(z)</code> очень быстро растут и
+          могут приводить к переполнениям и <code>NaN</code>.
+        </li>
+        <li>
+          <strong>Защита loss от log(0)</strong> — перед вычислением
+          <code>log(p)</code> вероятность <code>p</code> часто клиппят в
+          диапазон <code>[ε, 1 − ε]</code>, чтобы не получать
+          <code>log(0)</code>.
+        </li>
+      </ul>
+
+      <p>В логистической регрессии это выглядит, например, так:</p>
+      <div class="formula">
+        const t = Math.min(1 - eps, Math.max(eps, a)); // eps ~ 1e-12<br />
+        loss += -(y * log(t) + (1 - y) * log(1 - t));
+      </div>
+
+      <h2>Компромисс</h2>
+      <p>
+        Клиппинг — это всегда компромисс между
+        <strong>численной устойчивостью</strong> и
+        <strong>точностью модели</strong>:
+      </p>
+      <ul>
+        <li>
+          слишком агрессивный клиппинг может искажать значения (например,
+          считать σ(4) ровно 1, хотя на самом деле ≈ 0.982);
+        </li>
+        <li>
+          но отсутствие клиппинга может привести к
+          <code>Infinity</code>/<code>NaN</code> при работе с
+          <code>exp</code> и <code>log</code>.
+        </li>
+      </ul>
+
+      <p class="muted">
+        В учебных демках, вроде <code>2-1-classification-min</code>, обычно
+        хватает мягкого клиппинга вероятностей в log-loss и аккуратной
+        реализации сигмоиды, без жёсткого обрезания по z.
+      </p>
+    </main>
+  </body>
+</html>
+

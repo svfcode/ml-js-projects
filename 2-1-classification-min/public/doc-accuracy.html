@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Accuracy в классификации — пояснения</title>
+    <link rel="stylesheet" href="styles.css" />
+    <style>
+      body {
+        max-width: 760px;
+      }
+      main {
+        margin-top: 0.5rem;
+      }
+      h1 {
+        font-size: 1.35rem;
+        margin-bottom: 0.5rem;
+      }
+      h2 {
+        font-size: 1.05rem;
+        margin-top: 1.1rem;
+        margin-bottom: 0.4rem;
+      }
+      p {
+        line-height: 1.55;
+      }
+      ul {
+        padding-left: 1.2rem;
+      }
+      li {
+        margin: 0.2rem 0;
+      }
+      .formula {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+          "Liberation Mono", "Courier New", monospace;
+        font-size: 0.9rem;
+        background: #1a222c;
+        padding: 0.35rem 0.5rem;
+        border-radius: 4px;
+        border: 1px solid rgba(45, 58, 71, 0.9);
+        margin: 0.4rem 0;
+      }
+      .muted {
+        color: var(--m);
+        font-size: 0.9rem;
+      }
+      a {
+        color: var(--a);
+        text-decoration: none;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <nav class="muted" aria-label="Страницы демо">
+        <a href="index.html">← назад к демо</a>
+        <span>·</span>
+        <a href="doc-sigmoid.html">Про сигмоиду и клиппинг</a>
+      </nav>
+
+      <h1>Метрика accuracy в демо классификации</h1>
+
+      <p class="muted">
+        Эта страница относится к демо
+        <code>2-1-classification-min</code> и поясняет функцию
+        <code>accuracy()</code> из <code>app.js</code> (строки 75–92).
+      </p>
+
+      <h2>Что такое accuracy</h2>
+      <p>
+        <strong>Accuracy</strong> — это доля правильных предсказаний модели в
+        выборке:
+      </p>
+      <div class="formula">
+        accuracy = (количество правильных предсказаний) / (общее количество
+        предсказаний)
+      </div>
+      <p>
+        В двуклассовой задаче (классы 0 и 1) каждое наблюдение либо
+        предсказано верно, либо нет, поэтому accuracy — это просто процент
+        попаданий.
+      </p>
+
+      <h2>Какие данные у нас есть</h2>
+      <p>Точки на графике хранятся в массиве:</p>
+      <div class="formula">
+        canvas.points = [ { x, y, label }, ... ]
+      </div>
+      <ul>
+        <li><code>x, y</code> — координаты точки на плоскости;</li>
+        <li>
+          <code>label</code> — настоящий класс точки:
+          <code>0</code> или <code>1</code>.
+        </li>
+      </ul>
+      <p>
+        Модель логистической регрессии задаётся параметрами
+        <code>w₁, w₂, b</code> внутри объекта <code>model</code>.
+      </p>
+
+      <h2>Шаги функции accuracy()</h2>
+      <p>Упрощённая версия кода:</p>
+      <div class="formula">
+        const pts = canvas.points;<br />
+        const n = pts.length;<br />
+        if (!n) return 0;<br />
+        let c = 0;<br />
+        for (const p of pts) {<br />
+        &nbsp;&nbsp;const z = w1 * p.x + w2 * p.y + b;<br />
+        &nbsp;&nbsp;const a = sigmoid(z);<br />
+        &nbsp;&nbsp;const pred = a &gt;= 0.5 ? 1 : 0;<br />
+        &nbsp;&nbsp;if (pred === p.label) c++;<br />
+        }<br />
+        return c / n;
+      </div>
+
+      <p>Разбор по шагам:</p>
+      <ul>
+        <li>
+          <code>pts</code> и <code>n</code> — берём все текущие точки и их
+          количество. Если точек нет, accuracy считаем равной 0.
+        </li>
+        <li>
+          <code>z = w₁·x + w₂·y + b</code> — линейная комбинация признаков для
+          точки <code>p</code>.
+        </li>
+        <li>
+          <code>a = sigmoid(z)</code> — модель выдаёт вероятность
+          <code>P(y=1 | x)</code> для этой точки.
+        </li>
+        <li>
+          <code>pred = a &gt;= 0.5 ? 1 : 0</code> — мы выбираем класс по
+          порогу 0.5:
+          <ul>
+            <li>если вероятность ≥ 0.5 → предсказываем класс 1;</li>
+            <li>иначе → класс 0.</li>
+          </ul>
+        </li>
+        <li>
+          <code>if (pred === p.label) c++;</code> — если предсказанный класс
+          совпал с настоящей меткой точки, увеличиваем счётчик верных
+          предсказаний.
+        </li>
+      </ul>
+
+      <p>В конце:</p>
+      <div class="formula">accuracy = c / n</div>
+      <p>
+        Здесь <code>c</code> — количество попаданий, а <code>n</code> —
+        количество всех точек, поэтому отношение <code>c / n</code> — это доля
+        верных ответов. В интерфейсе демо это значение умножается на 100 и
+        показывается в процентах.
+      </p>
+
+      <h2>Как линейная комбинация даёт метку класса</h2>
+      <p>
+        Для каждой точки <code>p = (x₁, x₂)</code> модель сначала считает
+        <strong>линейную комбинацию признаков</strong>:
+      </p>
+      <div class="formula">z = w₁·x₁ + w₂·x₂ + b</div>
+      <ul>
+        <li><code>x₁, x₂</code> — признаки (координаты точки);</li>
+        <li><code>w₁, w₂</code> — веса (насколько важна каждая координата);</li>
+        <li><code>b</code> — смещение (bias).</li>
+      </ul>
+      <p>Затем эта линейная комбинация подаётся в сигмоиду:</p>
+      <div class="formula">P(y=1 | x) = σ(z) = 1 / (1 + e<sup>−z</sup>)</div>
+      <p>
+        Получив вероятность класса 1, модель применяет порог 0.5, чтобы решить,
+        к какому классу отнести точку:
+      </p>
+      <div class="formula">
+        const a = sigmoid(z); // P(y=1 | x)<br />
+        const pred = a &gt;= 0.5 ? 1 : 0;
+      </div>
+      <p>
+        Геометрически выражение <code>w₁·x₁ + w₂·x₂ + b = 0</code> задаёт
+        <strong>линию на плоскости</strong>, которая делит все точки на две
+        полуплоскости:
+      </p>
+      <ul>
+        <li>там, где <code>z &gt; 0</code>, модель склоняется к классу 1;</li>
+        <li>там, где <code>z &lt; 0</code>, — к классу 0.</li>
+      </ul>
+      <p>
+        Именно эта линия рисуется в демо как оранжевая “граница решения”, а
+        метрика accuracy проверяет, насколько часто такое правило попадает в
+        реальные метки <code>label</code>.
+      </p>
+
+      <p class="muted">
+        Важно понимать, что accuracy полезна, когда классы сбалансированы.
+        Если почти все точки принадлежат одному классу, высокая accuracy может
+        означать всего лишь «всегда угадываем частый класс».
+      </p>
+    </main>
+  </body>
+</html>
+

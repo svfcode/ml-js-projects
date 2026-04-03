@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>CLF min — логистическая регрессия</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <nav class="row" aria-label="Страницы демо">
+      <a href="index.html">Демо</a>
+      <span class="muted">·</span>
+      <a href="doc-sigmoid.html">Про сигмоиду и клиппинг</a>
+      <span class="muted">·</span>
+      <a href="doc-accuracy.html">Про метрику accuracy</a>
+    </nav>
+
+    <h1>Бинарная классификация (минимум кода)</h1>
+    <p>
+      Модель <code>P(y=1) = σ(w₁·x₁ + w₂·x₂ + b)</code>, loss
+      <code>log-loss</code>. Точки двух классов, граница решения — оранжевая
+      прямая. ЛКМ — добавить точку выбранного класса, ПКМ — удалить ближайшую.
+    </p>
+
+    <div class="metrics">
+      <span>w₁ <em id="vw1">0</em></span>
+      <span>w₂ <em id="vw2">0</em></span>
+      <span>b <em id="vb">0</em></span>
+      <span>log-loss <em id="vloss">—</em></span>
+      <span>accuracy <em id="vacc">—</em></span>
+      <span>шаг <em id="vstep">0</em></span>
+    </div>
+
+    <div class="row">
+      <label>
+        η
+        <input type="number" id="lr" value="0.8" min="0.001" step="any" />
+      </label>
+      <div class="class-pick" role="group" aria-label="Класс новой точки">
+        <span>Класс при клике:</span>
+        <label class="class-pick__label">
+          <input type="radio" name="pointClass" value="0" checked />
+          0
+          <span class="class-pick__dot class-pick__dot--0"></span>
+        </label>
+        <label class="class-pick__label">
+          <input type="radio" name="pointClass" value="1" />
+          1
+          <span class="class-pick__dot class-pick__dot--1"></span>
+        </label>
+      </div>
+    </div>
+
+    <div class="btns">
+      <button type="button" id="step">Шаг</button>
+      <button type="button" id="run" class="primary">Обучать</button>
+      <button type="button" id="stop" disabled>Стоп</button>
+    </div>
+
+    <div class="chart chart--clickable">
+      <canvas id="c" width="1000" height="500"></canvas>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="ui.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>
+
